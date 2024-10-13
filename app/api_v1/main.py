@@ -1,19 +1,22 @@
-from fastapi import FastAPI
-from routes import transactions, users
+from fastapi import FastAPI, Depends
+from contextlib import asynccontextmanager
+from app.api_v1.routes import transactions_route, user_routes
 from db.mongodb import close_mongo_connection, connect_to_mongo
 
-app = FastAPI()
 
-app.include_router(transactions.router)
-app.include_router(users.router)
-
-@app.on_event("startup")
-async def startup_db_client():
+#Database connection management
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup logic
     await connect_to_mongo()
-
-@app.on_event("shutdown")
-async def shutdown_db_client():
+    yield
+    # Shutdown logic
     await close_mongo_connection()
+
+app = FastAPI(lifespan=lifespan)
+
+app.include_router(transactions_route.router)
+app.include_router(user_routes.router)
 
 if __name__ == "__main__":
     import uvicorn

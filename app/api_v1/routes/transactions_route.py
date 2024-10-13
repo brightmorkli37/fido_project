@@ -1,8 +1,8 @@
 from fastapi import APIRouter, HTTPException, Depends
 from typing import List
 from bson import ObjectId
-from schemas import TransactionCreate, TransactionResponse
-from models import TransactionModel
+from app.api_v1.schemas import TransactionCreate, TransactionResponse
+from app.api_v1.models import TransactionModel
 from db.mongodb import get_database
 
 router = APIRouter()
@@ -13,7 +13,7 @@ async def create_transaction(user_id: str, transaction: TransactionCreate, db=De
     if user is None:
         raise HTTPException(status_code=404, detail="User not found")
     
-    transaction_dict = transaction.dict()
+    transaction_dict = transaction.model_dump()
     transaction_dict["user_id"] = ObjectId(user_id)
     result = await db["transactions"].insert_one(transaction_dict)
     created_transaction = await db["transactions"].find_one({"_id": result.inserted_id})
@@ -26,7 +26,7 @@ async def read_user_transactions(user_id: str, db=Depends(get_database)):
 
 @router.put("/transactions/{transaction_id}", response_model=TransactionResponse)
 async def update_transaction(transaction_id: str, transaction: TransactionCreate, db=Depends(get_database)):
-    transaction_dict = transaction.dict()
+    transaction_dict = transaction.model_dump()
     result = await db["transactions"].update_one(
         {"_id": ObjectId(transaction_id)},
         {"$set": transaction_dict}

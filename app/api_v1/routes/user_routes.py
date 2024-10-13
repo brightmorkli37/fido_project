@@ -1,21 +1,21 @@
 from fastapi import APIRouter, HTTPException, Depends
 from typing import List
 from bson import ObjectId
-from schemas import UserCreate, UserResponse
-from models import UserModel
+from app.api_v1.schemas import UserCreate, UserResponse
+from app.api_v1.models import UserModel
 from db.mongodb import get_database
 from cryptography.fernet import Fernet
-import os
+from app.api_v1.utils import generate_key
 
 router = APIRouter()
 
-ENCRYPTION_KEY = os.getenv("ENCRYPTION_KEY").encode()
-fernet = Fernet(ENCRYPTION_KEY)
+ENCRYPTION_KEY = generate_key.get_encryption_key()
+fernet = Fernet(ENCRYPTION_KEY.encode())
 
 @router.post("/users/", response_model=UserResponse)
 async def create_user(user: UserCreate, db=Depends(get_database)):
     encrypted_name = fernet.encrypt(user.full_name.encode()).decode()
-    user_dict = user.dict()
+    user_dict = user.model_dump()
     user_dict["full_name"] = encrypted_name
     result = await db["users"].insert_one(user_dict)
     created_user = await db["users"].find_one({"_id": result.inserted_id})
@@ -40,7 +40,7 @@ async def read_users(skip: int = 0, limit: int = 10, db=Depends(get_database)):
 @router.put("/users/{user_id}", response_model=UserResponse)
 async def update_user(user_id: str, user: UserCreate, db=Depends(get_database)):
     encrypted_name = fernet.encrypt(user.full_name.encode()).decode()
-    user_dict = user.dict()
+    user_dict = user.model_dump()
     user_dict["full_name"] = encrypted_name
     result = await db["users"].update_one(
         {"_id": ObjectId(user_id)},

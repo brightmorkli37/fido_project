@@ -1,5 +1,4 @@
 from motor.motor_asyncio import AsyncIOMotorClient
-from pymongo import MongoClient
 import os
 from dotenv import load_dotenv
 
@@ -10,8 +9,9 @@ client = None
 
 async def connect_to_mongo():
     global client
-    client = AsyncIOMotorClient(MONGO_URI)
-    await client.server_info()  # This will raise an exception if the connection fails
+    if client is None:
+        client = AsyncIOMotorClient(MONGO_URI)
+        await client.server_info()  # Ensures the connection is valid
 
 async def close_mongo_connection():
     global client
@@ -19,5 +19,7 @@ async def close_mongo_connection():
         client.close()
 
 async def get_database():
-    db = client.fido_database
-    return db
+    global client
+    if client is None:
+        raise Exception("MongoDB client is not initialized. Call 'connect_to_mongo' first.")
+    return client.fido_database
