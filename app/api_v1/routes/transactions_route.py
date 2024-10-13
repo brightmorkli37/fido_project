@@ -1,76 +1,52 @@
-from fastapi import APIRouter, HTTPException, Depends
-from typing import List
+from fastapi import APIRouter, HTTPException
+from app.api_v1.schemas import TransactionCreate
+from app.services.encryption_service import encrypt_data, decrypt_data
+from db.database import transaction_collection, user_collection
 from bson import ObjectId
-from app.api_v1.schemas import TransactionCreate, TransactionResponse
-from app.api_v1.models import TransactionModel
-from db.mongodb import get_database
+from collections import Counter
+
 
 router = APIRouter()
 
-@router.post("/users/{user_id}/transactions/", response_model=TransactionResponse)
-async def create_transaction(user_id: str, transaction: TransactionCreate, db=Depends(get_database)):
-    user = await db["users"].find_one({"_id": ObjectId(user_id)})
-    if user is None:
+@router.post("/transactions/")
+async def create_transaction(user_id: str, transaction: TransactionCreate):
+    user = await user_collection.find_one({"_id": ObjectId(user_id)})
+    if not user:
         raise HTTPException(status_code=404, detail="User not found")
-    
+
     transaction_dict = transaction.model_dump()
-    transaction_dict["user_id"] = ObjectId(user_id)
-    result = await db["transactions"].insert_one(transaction_dict)
-    created_transaction = await db["transactions"].find_one({"_id": result.inserted_id})
-    return TransactionModel(**created_transaction)
+    transaction_dict['user_id'] = user_id
+    transaction_dict['full_name'] = encrypt_data(user['full_name'])
+    result = await transaction_collection.insert_one(transaction_dict)
+    return {"inserted_id": str(result.inserted_id)}
 
-@router.get("/users/{user_id}/transactions/", response_model=List[TransactionResponse])
-async def read_user_transactions(user_id: str, db=Depends(get_database)):
-    transactions = await db["transactions"].find({"user_id": ObjectId(user_id)}).to_list(1000)
-    return [TransactionModel(**t) for t in transactions]
+@router.get("/transactions/{user_id}")
+async def get_transaction_history(user_id: str):
+    transactions = await transaction_collection.find({"user_id": user_id}).to_list(length=100)
+    if transactions:
+        for tx in transactions:
+            tx['full_name'] = decrypt_data(tx['full_name'])
+        return transactions
+    raise HTTPException(status_code=404, detail="No transactions found")
 
-@router.put("/transactions/{transaction_id}", response_model=TransactionResponse)
-async def update_transaction(transaction_id: str, transaction: TransactionCreate, db=Depends(get_database)):
-    transaction_dict = transaction.model_dump()
-    result = await db["transactions"].update_one(
-        {"_id": ObjectId(transaction_id)},
-        {"$set": transaction_dict}
-    )
-    if result.modified_count == 0:
-        raise HTTPException(status_code=404, detail="Transaction not found")
-    updated_transaction = await db["transactions"].find_one({"_id": ObjectId(transaction_id)})
-    return TransactionModel(**updated_transaction)
 
-@router.delete("/transactions/{transaction_id}")
-async def delete_transaction(transaction_id: str, db=Depends(get_database)):
-    result = await db["transactions"].delete_one({"_id": ObjectId(transaction_id)})
-    if result.deleted_count == 0:
-        raise HTTPException(status_code=404, detail="Transaction not found")
-    return {"message": "Transaction deleted successfully"}
 
-@router.get("/users/{user_id}/analytics")
-async def get_user_analytics(user_id: str, db=Depends(get_database)):
-    pipeline = [
-        {"$match": {"user_id": ObjectId(user_id)}},
-        {"$group": {
-            "_id": None,
-            "avg_value": {"$avg": "$transaction_amount"},
-            "total_transactions": {"$sum": 1},
-            "transactions": {"$push": {"date": "$transaction_date", "amount": "$transaction_amount"}}
-        }}
-    ]
-    result = await db["transactions"].aggregate(pipeline).to_list(1)
-    
-    if not result:
-        raise HTTPException(status_code=404, detail="No transactions found for this user")
-    
-    analytics = result[0]
-    transactions = analytics["transactions"]
-    
-    date_counts = {}
-    for t in transactions:
-        date = t["date"].date()
-        date_counts[date] = date_counts.get(date, 0) + 1
-    
-    most_active_day = max(date_counts, key=date_counts.get)
-    
+@router.get("/analytics/{user_id}")
+async def get_transaction_analytics(user_id: str):
+    transactions = await transaction_collection.find({"user_id": user_id}).to_list(length=1000)
+    if not transactions:
+        raise HTTPException(status_code=404, detail="No transactions found")
+
+    # Average Transaction Value
+    total_amount = sum(tx['transaction_amount'] for tx in transactions)
+    avg_transaction_value = total_amount / len(transactions)
+
+    # Day with Highest Transactions
+    dates = [tx['transaction_date'].date() for tx in transactions]
+    most_common_date = Counter(dates).most_common(1)[0]
+
     return {
-        "average_transaction_value": analytics["avg_value"],
-        "most_active_day": most_active_day,
-        "total_transactions": analytics["total_transactions"]
+        "average_transaction_value": avg_transaction_value,
+        "highest_transactions_day": most_common_date[0].isoformat()
     }
+

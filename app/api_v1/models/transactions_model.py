@@ -16,9 +16,9 @@ class PyObjectId(ObjectId):
         return ObjectId(v)
 
     @classmethod
-    def __get_pydantic_json_schema__(cls, schema, field):
-        # Update the schema to reflect that ObjectId is treated as a string
-        schema.update(type="string")
+    def __modify_schema__(cls, field_schema):
+        field_schema.update(type="string")
+
 
 class TransactionModel(BaseModel):
     id: Optional[PyObjectId] = Field(alias="_id")
@@ -28,6 +28,6 @@ class TransactionModel(BaseModel):
     transaction_type: str
 
     class Config:
-        populate_by_name = True
+        allow_population_by_field_name = True
         arbitrary_types_allowed = True
         json_encoders = {ObjectId: str}

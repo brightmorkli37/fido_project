@@ -9,6 +9,12 @@ pymongo = "*"
 pytest = "*"
 cryptography = "*"
 motor = "*"
+pytz = "*"
+sqlalchemy = "*"
+asyncpg = "*"
+aioredis = "*"
+python-dotenv = "*"
+pydantic-core = "*"
 
 [dev-packages]
 

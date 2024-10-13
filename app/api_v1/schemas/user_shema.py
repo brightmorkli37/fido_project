@@ -1,16 +1,12 @@
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel
 from datetime import datetime
+from typing import Optional
 
 
 class UserCreate(BaseModel):
-    username: str
-    email: EmailStr
     full_name: str
-
 
 class UserResponse(BaseModel):
     id: str
-    username: str
-    email: EmailStr
     full_name: str
-    created_at: datetime
+    created_at: Optional[datetime] = None
