@@ -53,16 +53,3 @@ class UserModel(BaseModel):
         "json_encoders": {ObjectId: str},
     }
 
-# class UserModel(BaseModel):
-#     """Pydantic model for user representation in MongoDB."""
-    
-#     id: Optional[PyObjectId] = Field(alias="_id")
-#     full_name: str
-#     created_at: datetime = Field(default_factory=lambda: datetime.now(pytz.utc))
-
-#     model_config = {
-#         "populate_by_name": True,
-#         "arbitrary_types_allowed": True,
-#         "json_encoders": {ObjectId: str}
-#     }
-
