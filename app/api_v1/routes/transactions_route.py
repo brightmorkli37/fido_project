@@ -1,8 +1,8 @@
 from fastapi import APIRouter, HTTPException, Depends
 from typing import List
 from bson import ObjectId
-from app.schemas import TransactionCreate, TransactionResponse
-from app.models import TransactionModel
+from schemas import TransactionCreate, TransactionResponse
+from models import TransactionModel
 from db.mongodb import get_database
 
 router = APIRouter()

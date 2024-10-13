@@ -1,8 +1,8 @@
 from fastapi import APIRouter, HTTPException, Depends
 from typing import List
 from bson import ObjectId
-from app.schemas import UserCreate, UserResponse
-from app.models import UserModel
+from schemas import UserCreate, UserResponse
+from models import UserModel
 from db.mongodb import get_database
 from cryptography.fernet import Fernet
 import os
