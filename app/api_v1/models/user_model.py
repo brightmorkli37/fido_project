@@ -1,9 +1,8 @@
 from bson import ObjectId
-from pydantic import GetCoreSchemaHandler, BaseModel, Field, EmailStr
-from pydantic_core import core_schema
 from datetime import datetime, timezone
+from pydantic import GetCoreSchemaHandler, BaseModel, Field
+from pydantic_core import core_schema
 from typing import Optional
-import pytz
 
 
 class PyObjectId(ObjectId):
